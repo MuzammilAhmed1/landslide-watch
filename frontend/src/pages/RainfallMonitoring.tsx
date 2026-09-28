@@ -15,7 +15,7 @@ export function RainfallMonitoring() {
   const { data: latestData, isLoading } = useQuery(
     'rainfall-latest-all',
     () => api.get('/api/rainfall/latest').then((r) => r.data.data as any[]),
-    { refetchInterval: 30_000 }
+    { refetchInterval: 3000 }
   );
 
   const { data: historyData } = useQuery(

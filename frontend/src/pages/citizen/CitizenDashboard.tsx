@@ -30,7 +30,7 @@ import { SaferLocationModal } from './SaferLocationModal';
 
 export function CitizenDashboard() {
   const navigate = useNavigate();
-  const { userLocation, setUserLocation, switchPortal } = useAuthStore();
+  const { userLocation, setUserLocation, switchPortal, signOut } = useAuthStore();
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [locationSearch, setLocationSearch] = useState('');
@@ -50,7 +50,7 @@ export function CitizenDashboard() {
   const { data: locationsData } = useQuery(
     'locations',
     () => api.get('/api/locations').then((r) => r.data.data),
-    { refetchInterval: 60_000 }
+    { refetchInterval: 3000 }
   );
 
   // Current Coordinates & Data
@@ -202,9 +202,10 @@ export function CitizenDashboard() {
           </span>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
+            await signOut();
             switchPortal('authority');
-            navigate('/authority');
+            navigate('/authority/login');
           }}
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#4A7C59] hover:bg-emerald-600 text-white font-bold text-xs transition-all shadow-sm"
         >

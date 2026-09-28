@@ -17,7 +17,7 @@ export function Locations() {
   const { data, isLoading } = useQuery(
     'locations',
     () => api.get('/api/locations').then((r) => r.data.data as Array<Location & { latestRisk?: RiskAssessment }>),
-    { refetchInterval: 60_000 }
+    { refetchInterval: 3000 }
   );
 
   const locations = (data || [])

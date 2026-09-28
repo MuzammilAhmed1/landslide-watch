@@ -35,7 +35,7 @@ export function Navbar() {
   const isLocationDetail = location.pathname.startsWith('/locations/') && location.pathname !== '/locations';
   const navigate = useNavigate();
   const { toggleSidebar } = useUIStore();
-  const { activePortal, switchPortal } = useAuthStore();
+  const { activePortal, switchPortal, signOut } = useAuthStore();
   const [showAnalyst, setShowAnalyst] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -102,9 +102,10 @@ export function Navbar() {
           {/* Dual-Portal Mode Switcher (Judge & User Convenience) */}
           <div className="flex items-center bg-[#F5F0E8] p-0.5 rounded-xl border border-[#C8D8BC]">
             <button
-              onClick={() => {
+              onClick={async () => {
+                await signOut();
                 switchPortal('citizen');
-                navigate('/citizen');
+                navigate('/citizen/login');
               }}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activePortal === 'citizen'
@@ -117,9 +118,10 @@ export function Navbar() {
               <span className="hidden sm:inline">Citizen View</span>
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
+                await signOut();
                 switchPortal('authority');
-                navigate('/');
+                navigate('/authority/login');
               }}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activePortal === 'authority'

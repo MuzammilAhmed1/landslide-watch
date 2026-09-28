@@ -85,7 +85,7 @@ export function Sidebar() {
               );
             }
 
-            if (!item.roles.includes(role)) return null;
+            if (!role || !item.roles.includes(role)) return null;
 
             const Icon = item.icon!;
             return (

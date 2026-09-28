@@ -7,7 +7,10 @@ import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { Spinner } from './components/shared/Badges';
 
 // Dedicated Full-Featured Pages
-import Login from './pages/Login';
+import PortalSelection from './pages/PortalSelection';
+import CitizenLogin from './pages/auth/CitizenLogin';
+import AuthorityLogin from './pages/auth/AuthorityLogin';
+
 import CitizenWelcome from './pages/citizen/CitizenWelcome';
 import CitizenDashboard from './pages/citizen/CitizenDashboard';
 import CommandCenter from './pages/CommandCenter';
@@ -42,7 +45,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { initialize, initialized, activePortal } = useAuthStore();
+  const { initialize, initialized } = useAuthStore();
 
   useEffect(() => {
     initialize();
@@ -62,37 +65,20 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              {activePortal === 'citizen' ? (
-                <CitizenWelcome />
-              ) : (
-                <AppLayout>
-                  <CommandCenter />
-                </AppLayout>
-              )}
-            </ProtectedRoute>
-          }
-        />
+        {/* Unauthenticated Root */}
+        <Route path="/" element={<PortalSelection />} />
+        
+        {/* Auth Pages */}
+        <Route path="/citizen/login" element={<CitizenLogin />} />
+        <Route path="/authority/login" element={<AuthorityLogin />} />
+        {/* Redirect old login to root */}
+        <Route path="/login" element={<Navigate to="/" replace />} />
 
         {/* Multi-Page Citizen Experience */}
         <Route
-          path="/citizen"
-          element={
-            <ProtectedRoute>
-              <CitizenWelcome />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
           path="/citizen/welcome"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="citizen">
               <CitizenWelcome />
             </ProtectedRoute>
           }
@@ -101,12 +87,19 @@ export default function App() {
         <Route
           path="/citizen/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="citizen">
               <CitizenDashboard />
             </ProtectedRoute>
           }
         />
+        
+        {/* Base /citizen route fallback */}
+        <Route
+          path="/citizen"
+          element={<Navigate to="/citizen/welcome" replace />}
+        />
 
+        {/* Authority Protected Pages */}
         <Route
           path="/authority"
           element={
@@ -121,7 +114,7 @@ export default function App() {
         <Route
           path="/map"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <LiveRiskMap />
               </AppLayout>
@@ -132,7 +125,7 @@ export default function App() {
         <Route
           path="/locations"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <Locations />
               </AppLayout>
@@ -143,7 +136,7 @@ export default function App() {
         <Route
           path="/locations/:id"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <LocationDetails />
               </AppLayout>
@@ -154,7 +147,7 @@ export default function App() {
         <Route
           path="/rainfall"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <RainfallMonitoring />
               </AppLayout>
@@ -165,7 +158,7 @@ export default function App() {
         <Route
           path="/terrain"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <TerrainAnalysis />
               </AppLayout>
@@ -176,7 +169,7 @@ export default function App() {
         <Route
           path="/soil"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <SoilAnalysis />
               </AppLayout>
@@ -187,7 +180,7 @@ export default function App() {
         <Route
           path="/landslides"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <HistoricalLandslides />
               </AppLayout>
@@ -198,7 +191,7 @@ export default function App() {
         <Route
           path="/infrastructure"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <InfrastructureExposure />
               </AppLayout>
@@ -209,7 +202,7 @@ export default function App() {
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <RiskAnalytics />
               </AppLayout>
@@ -231,7 +224,7 @@ export default function App() {
         <Route
           path="/notifications"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <NotificationsPage />
               </AppLayout>
@@ -253,7 +246,7 @@ export default function App() {
         <Route
           path="/datasources"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute minRole="authority">
               <AppLayout>
                 <DataSourcesPage />
               </AppLayout>
@@ -288,4 +281,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

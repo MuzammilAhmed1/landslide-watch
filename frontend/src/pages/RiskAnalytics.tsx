@@ -8,16 +8,20 @@ import { MOCK_LOCATIONS, MOCK_ALERTS } from '../lib/mockData';
 
 export function RiskAnalytics() {
   const { data: dist } = useQuery('risk-dist', () =>
-    api.get('/api/analytics/risk-distribution').then((r) => r.data.data)
+    api.get('/api/analytics/risk-distribution').then((r) => r.data.data),
+    { refetchInterval: 3000 }
   );
   const { data: alertFreq } = useQuery('alert-freq', () =>
-    api.get('/api/analytics/alert-frequency').then((r) => r.data.data)
+    api.get('/api/analytics/alert-frequency').then((r) => r.data.data),
+    { refetchInterval: 3000 }
   );
   const { data: rainfallSum } = useQuery('rainfall-summary', () =>
-    api.get('/api/analytics/rainfall-summary').then((r) => r.data.data as any[])
+    api.get('/api/analytics/rainfall-summary').then((r) => r.data.data as any[]),
+    { refetchInterval: 3000 }
   );
   const { data: whatChanged } = useQuery('what-changed-summary', () =>
-    api.get('/api/risk/what-changed').then((r) => r.data.data as SystemWhatChangedSummary)
+    api.get('/api/risk/what-changed').then((r) => r.data.data as SystemWhatChangedSummary),
+    { refetchInterval: 3000 }
   );
 
   // Compute immediate fallbacks from local live mock data if network query is pending

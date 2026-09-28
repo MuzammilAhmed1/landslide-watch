@@ -21,7 +21,7 @@ export default function LiveRiskMap() {
   const { data: locData } = useQuery(
     'locations',
     () => api.get('/api/locations').then((r) => r.data.data as Array<Location & { latestRisk?: RiskAssessment }>),
-    { refetchInterval: 60_000 }
+    { refetchInterval: 3000 }
   );
 
   const { data: landslidesData } = useQuery(

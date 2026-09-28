@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { Spinner } from './Badges';
 import { UserRole } from '../../types';
@@ -10,15 +10,9 @@ interface Props {
 
 const ROLE_LEVEL: Record<UserRole, number> = { citizen: 1, viewer: 1, authority: 2, admin: 3 };
 
-export function ProtectedRoute({ children, minRole = 'viewer' }: Props) {
-  const { user, role, initialized, demoLogin } = useAuthStore();
-
-  useEffect(() => {
-    // Auto-login as authority so anyone with the live link opens the dashboard immediately!
-    if (!user) {
-      demoLogin('authority');
-    }
-  }, [user, demoLogin]);
+export function ProtectedRoute({ children, minRole = 'citizen' }: Props) {
+  const { user, role, initialized } = useAuthStore();
+  const location = useLocation();
 
   if (!initialized) {
     return (
@@ -26,6 +20,35 @@ export function ProtectedRoute({ children, minRole = 'viewer' }: Props) {
         <Spinner size={32} />
       </div>
     );
+  }
+
+  // Not authenticated
+  if (!user) {
+    if (location.pathname.startsWith('/citizen')) {
+      return <Navigate to="/citizen/login" replace />;
+    } else if (location.pathname.startsWith('/authority') || location.pathname === '/map' || location.pathname === '/alerts') {
+      return <Navigate to="/authority/login" replace />;
+    }
+    // Default fallback
+    return <Navigate to="/" replace />;
+  }
+
+  // Authenticated but wrong role
+  const userRoleStr = (role as UserRole) || 'citizen';
+  
+  // If Authority tries to access Citizen routes
+  if (userRoleStr !== 'citizen' && location.pathname.startsWith('/citizen')) {
+    return <Navigate to="/authority" replace />;
+  }
+
+  // If Citizen tries to access Authority routes
+  if (userRoleStr === 'citizen' && (location.pathname.startsWith('/authority') || ROLE_LEVEL[userRoleStr] < ROLE_LEVEL[minRole])) {
+    return <Navigate to="/citizen/welcome" replace />;
+  }
+
+  // Basic RBAC check
+  if (minRole && ROLE_LEVEL[userRoleStr] < ROLE_LEVEL[minRole]) {
+    return <Navigate to={userRoleStr === 'citizen' ? '/citizen/welcome' : '/authority'} replace />;
   }
 
   return <>{children}</>;

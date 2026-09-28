@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield,
@@ -26,17 +26,29 @@ import {
   isLocationInNER,
   CatchmentPreset,
 } from '../../lib/geoUtils';
+import { LocationPermissionModal, PermissionState } from '../../components/citizen/LocationPermissionModal';
 
 export function CitizenWelcome() {
   const navigate = useNavigate();
-  const { userLocation, setUserLocation, switchPortal } = useAuthStore();
+  const { userLocation, setUserLocation, switchPortal, signOut } = useAuthStore();
 
   const [selectedState, setSelectedState] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [modalState, setModalState] = useState<PermissionState>('idle');
+  const [detectedLocationName, setDetectedLocationName] = useState<string>('');
   const [isLocatingGPS, setIsLocatingGPS] = useState(false);
-
-  // Boundary Denial Alert State
   const [denialAlert, setDenialAlert] = useState<string | null>(null);
+
+  // Automatically show the prompt when they login/arrive, but only once per session
+  useEffect(() => {
+    const hasPrompted = sessionStorage.getItem('has_prompted_location');
+    if (!hasPrompted && !userLocation) {
+      setModalState('prompt');
+      sessionStorage.setItem('has_prompted_location', 'true');
+    }
+  }, [userLocation]);
+
   const [selectedCatchment, setSelectedCatchment] = useState<CatchmentPreset>(() => {
     if (userLocation) {
       const match = NER_CATCHMENT_PRESETS.find(
@@ -48,56 +60,27 @@ export function CitizenWelcome() {
     return NER_CATCHMENT_PRESETS[0]; // Default: Aizawl Catchment
   });
 
-  // Filter catchments by state and search
-  const filteredCatchments = NER_CATCHMENT_PRESETS.filter((c) => {
-    const matchState = selectedState === 'All' || c.state === selectedState;
-    const q = searchQuery.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      c.district.toLowerCase().includes(q) ||
-      c.state.toLowerCase().includes(q);
-    return matchState && matchSearch;
-  });
-
-  // Handle Search Input Change with Real-Time NER Rejection Check
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    if (val.trim().length >= 3) {
-      // Test using bounding check logic for non-NER keywords
-      const check = isLocationInNER(0, 0, val);
-      if (!check.allowed && check.reason) {
-        setDenialAlert(check.reason);
-      } else {
-        setDenialAlert(null);
-      }
-    } else {
-      setDenialAlert(null);
-    }
+  const handleUseGPS = () => {
+    setModalState('prompt');
   };
 
-  // Live GPS Locator with Strict NER Boundary Check
-  const handleUseGPS = () => {
+  const handleAllowLocation = () => {
     if (!navigator.geolocation) {
-      setDenialAlert('Geolocation is not supported by your browser. Please choose your location manually from the Northeast India list.');
+      setModalState('unsupported');
       return;
     }
 
-    setIsLocatingGPS(true);
-    setDenialAlert(null);
-
+    setModalState('requesting');
+    
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setIsLocatingGPS(false);
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
 
         // Strict NER Boundary Verification
         const check = isLocationInNER(lat, lon);
         if (!check.allowed) {
-          setDenialAlert(
-            `⚠️ Location Outside Northeast India: Your GPS coordinates (${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E) fall outside our operational grid. Landslide Watch operates strictly within the 8 Northeast Indian States (Assam, Meghalaya, Mizoram, Nagaland, Manipur, Sikkim, Arunachal Pradesh, Tripura). Locations outside this territory are not permitted.`
-          );
+          setModalState('outside_ner');
           return;
         }
 
@@ -120,15 +103,35 @@ export function CitizenWelcome() {
           lon,
           name: `${nearest.name} (${minD < 1 ? 'Under 1' : Math.round(minD)} km away)`,
         });
+
+        setDetectedLocationName(nearest.name);
+        setModalState('success');
+
+        // Wait a brief moment so user can read the success message, then redirect
+        setTimeout(() => {
+          setModalState('idle');
+          navigate('/citizen/dashboard');
+        }, 2000);
       },
       (err) => {
-        setIsLocatingGPS(false);
-        setDenialAlert(
-          'Could not retrieve GPS location (Permission denied or signal timeout). Please select your district from the list below.'
-        );
+        if (err.code === err.PERMISSION_DENIED) {
+          setModalState('browser_denied');
+        } else if (err.code === err.TIMEOUT) {
+          setModalState('timeout');
+        } else {
+          setModalState('unsupported');
+        }
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
+  };
+
+  const handleDeny = () => {
+    setModalState('user_denied');
+  };
+
+  const handleCloseModal = () => {
+    setModalState('idle');
   };
 
   const handleSelectCatchment = (c: CatchmentPreset) => {
@@ -136,24 +139,41 @@ export function CitizenWelcome() {
     setUserLocation({
       lat: c.lat,
       lon: c.lon,
-      name: `${c.name}, ${c.state}`,
+      name: c.name,
     });
-    setDenialAlert(null);
-  };
-
-  const handleProceedToDashboard = () => {
-    if (selectedCatchment) {
-      setUserLocation({
-        lat: selectedCatchment.lat,
-        lon: selectedCatchment.lon,
-        name: `${selectedCatchment.name}, ${selectedCatchment.state}`,
-      });
-    }
     navigate('/citizen/dashboard');
   };
 
+  const handleProceedToDashboard = () => {
+    navigate('/citizen/dashboard');
+  };
+
+  // Filter catchments by state and search
+  const filteredCatchments = NER_CATCHMENT_PRESETS.filter((c) => {
+    const matchState = selectedState === 'All' || c.state === selectedState;
+    const q = searchQuery.toLowerCase().trim();
+    const matchSearch =
+      !q ||
+      c.name.toLowerCase().includes(q) ||
+      c.district.toLowerCase().includes(q) ||
+      c.state.toLowerCase().includes(q);
+    return matchState && matchSearch;
+  });
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+  };
+
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#0F2018] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#0F2018] flex flex-col font-sans relative">
+      
+      <LocationPermissionModal 
+        state={modalState} 
+        detectedLocationName={detectedLocationName}
+        onAllow={handleAllowLocation}
+        onDeny={handleDeny}
+        onClose={handleCloseModal}
+      />
       {/* Top Authority / Citizen Switch Bar */}
       <div className="bg-[#1A3028] text-white px-4 py-2.5 text-xs flex items-center justify-between border-b border-[#4A7C59]/40">
         <div className="flex items-center gap-2">
@@ -165,9 +185,10 @@ export function CitizenWelcome() {
           </span>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
+            await signOut();
             switchPortal('authority');
-            navigate('/authority');
+            navigate('/authority/login');
           }}
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#4A7C59] hover:bg-emerald-600 text-white font-bold text-xs transition-all shadow-sm"
         >
@@ -320,11 +341,11 @@ export function CitizenWelcome() {
             {/* GPS Button */}
             <button
               onClick={handleUseGPS}
-              disabled={isLocatingGPS}
+              disabled={modalState === 'requesting'}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#4A7C59]/10 hover:bg-[#4A7C59]/20 text-[#4A7C59] font-bold text-xs transition-colors border border-[#4A7C59]/30 self-start sm:self-auto"
             >
-              <Compass size={16} className={isLocatingGPS ? 'animate-spin' : ''} />
-              <span>{isLocatingGPS ? 'Detecting GPS...' : '📍 Auto-Detect My GPS'}</span>
+              <Compass size={16} className={modalState === 'requesting' ? 'animate-spin' : ''} />
+              <span>{modalState === 'requesting' ? 'Detecting GPS...' : '📍 Auto-Detect My GPS'}</span>
             </button>
           </div>
 

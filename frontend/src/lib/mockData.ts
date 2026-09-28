@@ -1395,3 +1395,49 @@ export const MOCK_DATA_SOURCES: DataSource[] = [
   },
 ];
 
+// -----------------------------------------------------------------------------
+// DYNAMIC TELEMETRY SIMULATOR
+// Mutates the mock data in-memory every 3 seconds to simulate a live backend.
+// -----------------------------------------------------------------------------
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    MOCK_LOCATIONS.forEach((loc) => {
+      if (!loc.latestRisk) return;
+      
+      const r = loc.latestRisk;
+      const i = r.inputs;
+      
+      // Random walk for rainfall (between 0 and 120mm)
+      const rainDelta = (Math.random() - 0.5) * 5;
+      if (i && i.rainfall_24h_mm !== undefined) i.rainfall_24h_mm = Math.max(0, Math.min(120, i.rainfall_24h_mm + rainDelta));
+      if (i && i.rainfall_current_mmph !== undefined) i.rainfall_current_mmph = Math.max(0, Math.min(30, i.rainfall_current_mmph + (Math.random() - 0.5) * 2));
+      
+      
+      // Random walk for risk score
+      const scoreDelta = (Math.random() - 0.5) * 3;
+      r.finalScore = Math.max(10, Math.min(99, r.finalScore + scoreDelta));
+      
+      // Update Risk Level & Priority based on new score
+      if (r.finalScore >= 75) {
+        r.riskLevel = 'CRITICAL';
+        r.priorityLevel = 'P1';
+      } else if (r.finalScore >= 60) {
+        r.riskLevel = 'HIGH';
+        r.priorityLevel = 'P2';
+      } else if (r.finalScore >= 40) {
+        r.riskLevel = 'MODERATE';
+        r.priorityLevel = 'P3';
+      } else {
+        r.riskLevel = 'LOW';
+        r.priorityLevel = 'P4';
+      }
+
+      // Update Trend
+      r.trend = scoreDelta > 0.5 ? 'RISING' : scoreDelta < -0.5 ? 'FALLING' : 'STABLE';
+      r.trendPct = parseFloat(Math.abs(scoreDelta * 3).toFixed(1));
+      
+      // Update timestamp to prove it's live
+      r.timestamp = new Date().toISOString();
+    });
+  }, 3000);
+}

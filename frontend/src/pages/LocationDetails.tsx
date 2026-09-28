@@ -67,7 +67,7 @@ export default function LocationDetails() {
   const { data, isLoading, error } = useQuery(
     ['location-detail', id],
     () => api.get(`/api/locations/${id}`).then((r) => r.data.data as LocationDetail),
-    { refetchInterval: 60_000 }
+    { refetchInterval: 3000 }
   );
 
   const { data: futureRisk } = useQuery(
